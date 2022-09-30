@@ -96,11 +96,17 @@ interface RootObject {
 }
 
 const ApiTable = () => {
+  const [data, setData] = useState<FlattenedLocationsInterface>({
+    headers: [],
+    data: [],
+  });
   const [flattenedLocations, setFlattenedLocations] =
     useState<FlattenedLocationsInterface>({
       headers: [],
       data: [],
     });
+
+  const [searchInput, setSearchInput] = useState("");
 
   const flattenObject = (obj: any) => {
     let result: any = {};
@@ -124,8 +130,6 @@ const ApiTable = () => {
   };
 
   const flattenData = (data: RootObject[]) => {
-    console.log("dardar" + JSON.stringify(data));
-
     let dataArray = data.map((obj: RootObject) => {
       return flattenObject(obj.location);
     });
@@ -135,6 +139,29 @@ const ApiTable = () => {
       headers: flattenedLocationHeaders,
       data: dataArray,
     });
+
+    setData({
+      headers: flattenedLocationHeaders,
+      data: dataArray,
+    });
+  };
+
+  const filterRows = (searchValue: any) => {
+    setSearchInput(searchValue);
+    if (searchInput !== "") {
+      const filteredRows = flattenedLocations.data.filter((item) => {
+        return Object.values(item)
+          .join("")
+          .toLowerCase()
+          .includes(searchInput.toLowerCase());
+      });
+      setFlattenedLocations({
+        ...flattenedLocations,
+        data: filteredRows,
+      });
+    } else {
+      setFlattenedLocations({ ...flattenedLocations });
+    }
   };
 
   useEffect(() => {
@@ -154,6 +181,10 @@ const ApiTable = () => {
 
   return (
     <div>
+      <input
+        placeholder="Search..."
+        onChange={(e) => filterRows(e.target.value)}
+      />
       <table>
         <thead>
           {flattenedLocations.headers.map((header: string, index: number) => {
@@ -161,20 +192,37 @@ const ApiTable = () => {
           })}
         </thead>
         <tbody>
-          {flattenedLocations.data.map((row: FlattenedData, index: number) => {
-            console.log("row" + JSON.stringify(row));
-            return (
-              <tr>
-                {flattenedLocations.headers.map(
-                  (header: string, index: number) => {
-                    return (
-                      <td key={index}>{row[header as keyof typeof row]}</td>
-                    );
-                  }
-                )}
-              </tr>
-            );
-          })}
+          {searchInput.length > 1
+            ? flattenedLocations.data.map(
+                (row: FlattenedData, index: number) => {
+                  return (
+                    <tr>
+                      {flattenedLocations.headers.map(
+                        (header: string, index: number) => {
+                          return (
+                            <td key={index}>
+                              {row[header as keyof typeof row]}
+                            </td>
+                          );
+                        }
+                      )}
+                    </tr>
+                  );
+                }
+              )
+            : data.data.map((row: FlattenedData, index: number) => {
+                return (
+                  <tr>
+                    {flattenedLocations.headers.map(
+                      (header: string, index: number) => {
+                        return (
+                          <td key={index}>{row[header as keyof typeof row]}</td>
+                        );
+                      }
+                    )}
+                  </tr>
+                );
+              })}
         </tbody>
       </table>
     </div>
