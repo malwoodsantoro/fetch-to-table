@@ -108,6 +108,8 @@ const ApiTable = () => {
 
   const [searchInput, setSearchInput] = useState("");
 
+  const [isAscendingOrder, setIsAscendingOrder] = useState(true);
+
   const flattenObject = (obj: any) => {
     let result: any = {};
 
@@ -164,6 +166,20 @@ const ApiTable = () => {
     }
   };
 
+  const sortByHeader = (headerName: string) => {
+    console.log(headerName)
+    const sortedData = flattenedLocations.data.sort(function (a, b) {
+      var keyA = a.name,
+        keyB = b.name
+      // Compare the 2 dates
+      if (keyA < keyB) return -1;
+      if (keyA > keyB) return 1;
+      return 0;
+    });
+    console.log(JSON.stringify(sortedData))
+    setFlattenedLocations({...flattenedLocations, data: sortedData})
+  };
+
   useEffect(() => {
     const url = "https://randomuser.me/api/?results=20";
 
@@ -188,7 +204,11 @@ const ApiTable = () => {
       <table>
         <thead>
           {flattenedLocations.headers.map((header: string, index: number) => {
-            return <th key={index}>{header}</th>;
+            return (
+              <th key={index} onClick={() => sortByHeader(header)}>
+                {header}
+              </th>
+            );
           })}
         </thead>
         <tbody>
