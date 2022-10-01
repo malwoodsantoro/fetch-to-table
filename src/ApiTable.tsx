@@ -95,6 +95,12 @@ interface RootObject {
   nat: string;
 }
 
+enum SortingDirection {
+  ASCENDING = "ASCENDING",
+  DESCENDING = "DESCENDING",
+  UNSORTED = "UNSORTED"
+}
+
 const ApiTable = () => {
   const [data, setData] = useState<FlattenedLocationsInterface>({
     headers: [],
