@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useSortableData from './useSortableData' 
 
 interface FlattenedLocationsInterface {
   headers: string[];
@@ -95,12 +96,6 @@ interface RootObject {
   nat: string;
 }
 
-enum SortingDirection {
-  ASCENDING = "ASCENDING",
-  DESCENDING = "DESCENDING",
-  UNSORTED = "UNSORTED"
-}
-
 const ApiTable = () => {
   const [data, setData] = useState<FlattenedLocationsInterface>({
     headers: [],
@@ -113,8 +108,7 @@ const ApiTable = () => {
     });
 
   const [searchInput, setSearchInput] = useState("");
-
-  const [isAscendingOrder, setIsAscendingOrder] = useState(true);
+  const { items, requestSort, sortConfig } = useSortableData(flattenedLocations);
 
   const flattenObject = (obj: any) => {
     let result: any = {};
