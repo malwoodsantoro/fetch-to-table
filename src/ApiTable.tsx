@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
+import styled from "styled-components";
 
 interface FlattenedLocationsInterface {
   headers: string[];
@@ -101,6 +102,24 @@ enum SortingDirection {
   UNSORTED = "UNSORTED",
 }
 
+////
+
+const Table = styled.table`
+padding: 25px;
+
+th {
+  background-color: lightblue;
+  padding: 10px 20px;
+}
+
+td {
+  background: #D3D3D3;
+}
+
+`
+
+//// utils 
+
 const fetchData = async () => {
   const url = "https://randomuser.me/api/?results=20";
 
@@ -113,6 +132,29 @@ const fetchData = async () => {
     console.log("error", error);
   }
 };
+
+const flattenObject = (obj: any) => {
+  let result: any = {};
+
+  for (const i in obj) {
+    if (typeof obj[i] === "object" && !Array.isArray(obj[i])) {
+      const temp = flattenObject(obj[i]);
+      for (const j in temp) {
+        result[j] = temp[j];
+      }
+    } else {
+      result[i] = obj[i];
+    }
+  }
+  return result;
+};
+
+const getNestedObjectKeys = (obj: Location) => {
+  const flattenedObject = flattenObject(obj);
+  return Object.keys(flattenedObject);
+};
+
+////
 
 const ApiTable = () => {
   const [data, setData] = useState<FlattenedLocationsInterface>({
@@ -129,69 +171,39 @@ const ApiTable = () => {
   const [searchInput, setSearchInput] = useState("");
   const [sortingDirections, setSortingDirections] = useState<any>({});
 
-  const firstMount = useRef(true);
-
-  const flattenObject = (obj: any) => {
-    let result: any = {};
-
-    for (const i in obj) {
-      if (typeof obj[i] === "object" && !Array.isArray(obj[i])) {
-        const temp = flattenObject(obj[i]);
-        for (const j in temp) {
-          result[j] = temp[j];
-        }
-      } else {
-        result[i] = obj[i];
-      }
-    }
-    return result;
-  };
-
-  const getNestedObjectKeys = (obj: Location) => {
-    const flattenedObject = flattenObject(obj);
-    return Object.keys(flattenedObject);
-  };
-
   const flattenData = (data: RootObject[]) => {
     let dataArray = data.map((obj: RootObject) => {
       return flattenObject(obj.location);
     });
 
     const flattenedLocationHeaders = getNestedObjectKeys(data[0].location);
-    setFlattenedLocations({
-      headers: flattenedLocationHeaders,
-      data: dataArray,
-    });
 
-    setData({
+    const flattenedObj = {
       headers: flattenedLocationHeaders,
       data: dataArray,
-    });
+    };
+
+    setFlattenedLocations(flattenedObj);
+    setData(flattenedObj);
+
+    return flattenedObj;
   };
 
-  const filterRows = (searchValue: any) => {
-    setSearchInput(searchValue);
+  const filterRows = (data: any, searchValue: any) => {
     if (searchInput !== "") {
-      const filteredRows = flattenedLocations.data.filter((item) => {
+      return data.filter((item: any) => {
         return Object.values(item)
           .join("")
           .toLowerCase()
           .includes(searchInput.toLowerCase());
       });
-      setFlattenedLocations({
-        ...flattenedLocations,
-        data: filteredRows,
-      });
     } else {
-      setFlattenedLocations({ ...flattenedLocations });
+      console.log('else!')
+      setFlattenedLocations({ ...data });
     }
   };
 
-  const sortData = (
-    data: any,
-    sortKey: string,
-    sortingDirection: SortingDirection
-  ) => {
+  const sortData = (data: FlattenedData[], sortKey: string, sortingDirection: SortingDirection) => {
     data.sort((a: any, b: any) => {
       const relevantValueA = a[sortKey];
       const relevantValueB = b[sortKey];
@@ -223,7 +235,6 @@ const ApiTable = () => {
 
   const sortByHeader = (headerName: string) => {
     const currentSortingDirection = sortingDirections[headerName];
-    console.log("teeeeee: " + currentSortingDirection);
     const newFlattenedLocations = {
       ...flattenedLocations,
       data: [...flattenedLocations.data],
@@ -242,28 +253,27 @@ const ApiTable = () => {
   };
 
   useEffect(() => {
-    fetchData().then((response: any) => {
-      flattenData(response);
+    fetchData()
+      .then((response: any) => flattenData(response))
+      .then((flattenedObj) => {
+        const sortingDirectionHeaders: { [key: string]: string } = {};
 
-      const sortingDirectionHeaders: { [key: string]: string } = {};
+        const flattenedHeaders = flattenedObj.headers;
+        for (const header of flattenedHeaders) {
+          sortingDirectionHeaders[header] = SortingDirection.UNSORTED;
+        }
 
-      const { headers } = flattenedLocations;
-      console.log("aaaaaa: " + JSON.stringify(flattenedLocations));
-      for (const header of headers) {
-        sortingDirectionHeaders[header] = SortingDirection.UNSORTED;
-      }
-
-      setSortingDirections(sortingDirectionHeaders);
-    });
+        setSortingDirections(sortingDirectionHeaders);
+      });
   }, []);
 
   return (
     <div>
       <input
         placeholder="Search..."
-        onChange={(e) => filterRows(e.target.value)}
+        onChange={(e) => setSearchInput(e.target.value)}
       />
-      <table>
+      <Table>
         <thead>
           {flattenedLocations.headers.map((header: string, index: number) => {
             return (
@@ -275,7 +285,7 @@ const ApiTable = () => {
         </thead>
         <tbody>
           {searchInput.length > 1
-            ? flattenedLocations.data.map(
+            ?  filterRows(flattenedLocations.data, searchInput).map(
                 (row: FlattenedData, index: number) => {
                   return (
                     <tr>
@@ -310,7 +320,7 @@ const ApiTable = () => {
                 }
               )}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 };
