@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import useSortableData from './useSortableData' 
+import { useEffect, useState, useRef } from "react";
 
 interface FlattenedLocationsInterface {
   headers: string[];
@@ -96,11 +95,31 @@ interface RootObject {
   nat: string;
 }
 
+enum SortingDirection {
+  ASCENDING = "ASCENDING",
+  DESCENDING = "DESCENDING",
+  UNSORTED = "UNSORTED",
+}
+
+const fetchData = async () => {
+  const url = "https://randomuser.me/api/?results=20";
+
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+    const results = json.results;
+    return results;
+  } catch (error) {
+    console.log("error", error);
+  }
+};
+
 const ApiTable = () => {
   const [data, setData] = useState<FlattenedLocationsInterface>({
     headers: [],
     data: [],
   });
+
   const [flattenedLocations, setFlattenedLocations] =
     useState<FlattenedLocationsInterface>({
       headers: [],
@@ -108,7 +127,9 @@ const ApiTable = () => {
     });
 
   const [searchInput, setSearchInput] = useState("");
-  const { items, requestSort, sortConfig } = useSortableData(flattenedLocations);
+  const [sortingDirections, setSortingDirections] = useState<any>({});
+
+  const firstMount = useRef(true);
 
   const flattenObject = (obj: any) => {
     let result: any = {};
@@ -166,33 +187,74 @@ const ApiTable = () => {
     }
   };
 
-  const sortByHeader = (headerName: string) => {
-    console.log(headerName)
-    const sortedData = flattenedLocations.data.sort(function (a, b) {
-      var keyA = a.name,
-        keyB = b.name
-      // Compare the 2 dates
-      if (keyA < keyB) return -1;
-      if (keyA > keyB) return 1;
-      return 0;
+  const sortData = (
+    data: any,
+    sortKey: string,
+    sortingDirection: SortingDirection
+  ) => {
+    data.sort((a: any, b: any) => {
+      const relevantValueA = a[sortKey];
+      const relevantValueB = b[sortKey];
+
+      if (
+        sortingDirection === SortingDirection.UNSORTED ||
+        sortingDirection === SortingDirection.ASCENDING
+      ) {
+        if (relevantValueA < relevantValueB) return -1;
+        if (relevantValueA > relevantValueB) return 1;
+        return 0;
+      } else {
+        if (relevantValueA > relevantValueB) return -1;
+        if (relevantValueA < relevantValueB) return 1;
+        return 0;
+      }
     });
-    console.log(JSON.stringify(sortedData))
-    setFlattenedLocations({...flattenedLocations, data: sortedData})
+  };
+
+  const getNextSortingDirection = (sortingDirection: SortingDirection) => {
+    if (
+      sortingDirection === SortingDirection.UNSORTED ||
+      sortingDirection === SortingDirection.ASCENDING
+    ) {
+      return SortingDirection.DESCENDING;
+    }
+    return SortingDirection.ASCENDING;
+  };
+
+  const sortByHeader = (headerName: string) => {
+    const currentSortingDirection = sortingDirections[headerName];
+    console.log("teeeeee: " + currentSortingDirection);
+    const newFlattenedLocations = {
+      ...flattenedLocations,
+      data: [...flattenedLocations.data],
+    };
+
+    sortData(newFlattenedLocations.data, headerName, currentSortingDirection);
+    const nextSortingDirection = getNextSortingDirection(
+      currentSortingDirection
+    );
+
+    const newSortingDirections = { ...sortingDirections };
+    newSortingDirections[headerName] = nextSortingDirection;
+
+    setFlattenedLocations(newFlattenedLocations);
+    setSortingDirections(newSortingDirections);
   };
 
   useEffect(() => {
-    const url = "https://randomuser.me/api/?results=20";
+    fetchData().then((response: any) => {
+      flattenData(response);
 
-    const fetchData = async () => {
-      try {
-        const response = await fetch(url);
-        const json = await response.json();
-        flattenData(json.results);
-      } catch (error) {
-        console.log("error", error);
+      const sortingDirectionHeaders: { [key: string]: string } = {};
+
+      const { headers } = flattenedLocations;
+      console.log("aaaaaa: " + JSON.stringify(flattenedLocations));
+      for (const header of headers) {
+        sortingDirectionHeaders[header] = SortingDirection.UNSORTED;
       }
-    };
-    fetchData();
+
+      setSortingDirections(sortingDirectionHeaders);
+    });
   }, []);
 
   return (
@@ -230,19 +292,23 @@ const ApiTable = () => {
                   );
                 }
               )
-            : data.data.map((row: FlattenedData, index: number) => {
-                return (
-                  <tr>
-                    {flattenedLocations.headers.map(
-                      (header: string, index: number) => {
-                        return (
-                          <td key={index}>{row[header as keyof typeof row]}</td>
-                        );
-                      }
-                    )}
-                  </tr>
-                );
-              })}
+            : flattenedLocations.data.map(
+                (row: FlattenedData, index: number) => {
+                  return (
+                    <tr>
+                      {flattenedLocations.headers.map(
+                        (header: string, index: number) => {
+                          return (
+                            <td key={index}>
+                              {row[header as keyof typeof row]}
+                            </td>
+                          );
+                        }
+                      )}
+                    </tr>
+                  );
+                }
+              )}
         </tbody>
       </table>
     </div>
